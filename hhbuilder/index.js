@@ -1,110 +1,98 @@
-/**
- *  Prompt Assumptions:
- *  
- *  The add button is supposed to add an entry to the household list using the form, but NOT to submit the list to the server
- *  The submit button is supposed to only support the existing household list
- *  Assuming the form is as given, I do not check if any HTML elements are valid, ordinarily I would use ids anyway
- *
- */
+var HouseholdBuilder = {
+  state: {
+    household: [],
+    formAge: null,
+    formRel: null,
+    formSmoker: null,
+    addBtn: null,
+    submitBtn: null,
+    debugDisplay: null,
+  },
 
-var formModule = (function () {
-  var formElem;     // HTML form element
-  var list;         // Up to date object of household list to submit
-  var listElem;     // HTML ul element
-  var listEntries;  // HTMLCollection li elements
+  init: function() {
+    var s = this.state;
+    this.findElems();
+    this.bindFormActions();
 
-  // Builds HTML for household list entry
-  var createEntry = function (entryData) {
-    var entry = document.createElement('li');
-    var entryText = document.createElement('p');
-    var entryDelete = document.createElement('button');
-    var textNode = document.createTextNode(entryData.rel);
-    // var textNode = document.createTextNode(JSON.stringify(entryData))
+    console.log('done initialization');
+  },
 
-    entry.className = 'entry';
-    entryText.appendChild(textNode);
-    entryDelete.appendChild(document.createTextNode('delete'));
-    entryDelete.addEventListener('click', function (e) {
-      var entryElem = e.target.parentElement;
-      var entryIndex = Array.prototype.indexOf.call(listEntries, entryElem);
-      list.splice(entryIndex, 1); // Uses Array.indexOf to update list
-      entryElem.remove(); // Delete DOM element
-    });
+  findElems: function() {
+    var s = this.state;
 
-    entry.appendChild(entryText);
-    entry.appendChild(entryDelete);
-    return entry;
-  };
-
-  // Add and Submit button functionality
-  var initButtons = function () {
-    var addBtn = formElem.elements[3];
-    addBtn.addEventListener('click', function(e) {
-      e.preventDefault(); // No page refresh
-
-      if (!formElem.reportValidity()) { // Invalid form
-        return;
+    if (document.forms.length === 0) {
+      console.error("form not found");
+    }
+    var formElem = document.forms[0];
+    formElem.onsubmit = function(e) {
+      // Prevent page reload on button click
+      // Not great solution, ideally button elems are outside of form to prevent this
+      e.preventDefault();
+    }
+    for (var i = 0; i < formElem.length; i++) {
+      var elem = formElem[i];
+      if (elem.getAttribute("name") === "age") {
+        s.formAge = elem
+      } else if (elem.getAttribute("name") === "rel") {
+        s.formRel = elem
+      } else if (elem.getAttribute("name") === "smoker") {
+        s.formSmoker = elem
+      } else if (elem.getAttribute("class") === "add") {
+        s.addBtn = elem
+      } else if (elem.getAttribute('type') === 'submit') {
+        s.submitBtn = elem
       }
-  
-      if (list.length == 0) { // Adds list element on first entry
-        document.body.appendChild(listElem);
-      }
+    }
 
-      var formData = new FormData(formElem);
-      var entry = {
-        'age': formData.get('age'),
-        'rel': formData.get('rel'),
-        'smoker': formData.get('smoker')
-      };
-      var entryElem = createEntry(entry);
+    var debugElems = document.getElementsByClassName("debug");
+    if (debugElems.length === 0) {
+      console.error("Debug elem not found")
+    }
+    s.debugDisplay = debugElems[0]
 
-      listElem.appendChild(entryElem);
-      list.push(entry);
-      formElem.reset();
-    });
-  
-    // Submit button 
-    formElem.addEventListener('submit', function(e) {
-      e.preventDefault(); // No page refresh
-  
-      // Show and update debug element
-      var debug = document.querySelector('.debug')
-      debug.style.display = 'block';
-      debug.textContent = JSON.stringify(list);
+    this.state = s
+  },
 
-      // SEND TO SERVER HERE
-    });
-  };
+  bindFormActions: function() {
+    var s = this.state
+    s.addBtn.addEventListener("click", function() {
+      console.log("Add")
+      HouseholdBuilder.addHouseholdItem()
+    })
+    s.submitBtn.addEventListener("click", function() {
+      console.log("Submit")
+      HouseholdBuilder.submitHousehold()
+    })
+  },
 
-  // Modify form behavior using HTML attributes, all default behavior to be preserved and should be faster
-  // Ordinarily I would just do this in the HTML and not JS
-  var modifyForm = function () {
-    // Built in HTML5 validation
-    var ageInput = formElem.elements.age;
-    var relInput = formElem.elements.rel;
-    ageInput.setAttribute('required', true);
-    ageInput.setAttribute('pattern', '[1-9][0-9]*');
-    relInput.setAttribute('required', true);
+  addHouseholdItem: function() {
+    var s = this.state
+    var form = {
+      age: s.formAge.value,
+      rel: s.formRel.value,
+      smoker: s.formSmoker.checked,
+    }
+    s.household.push(form)
+    this.state = s
+  },
 
-    // Tweak behavior based off prompt assumptions
-    formElem.setAttribute('method', 'POST');
-    formElem.elements[4].setAttribute('formnovalidate', true);
-  };
+  removeHouseholdItem: function(index) {
+    var s = this.state
+    if (index < 0 || index >= s.household.length) {
+      console.error("Invalid remove index")
+    }
+    s.household = s.household.splice(index, 1)
+    this.state = s
+  }, 
 
-  var init = function () {
-    list = [];
-    listElem = document.createElement('ul');
-    listEntries = document.getElementsByClassName('entry');
-    formElem = document.forms[0];
+  submitHousehold: function() {
+    var s = this.state
+    var serialized = JSON.stringify(s.household)
+    s.debugDisplay.innerText = serialized
+    s.debugDisplay.style.display = "block"
+  }, 
+};
 
-    modifyForm();
-    initButtons();
-  };
-
-  return {
-    init: init
-  };
-
-}());
-
-formModule.init();
+(function() {
+  HouseholdBuilder.init()
+})();
