@@ -6,54 +6,56 @@ var HouseholdBuilder = {
     formSmoker: null,
     addBtn: null,
     submitBtn: null,
+    householdDisplay: null,
     debugDisplay: null,
   },
 
   init: function() {
     var s = this.state;
-    this.findElems();
-    this.bindFormActions();
+    this.initState();
+    this.bindBtnActions();
 
-    console.log('done initialization');
+    console.log("done initialization");
   },
 
-  findElems: function() {
+  initState: function() {
     var s = this.state;
 
-    if (document.forms.length === 0) {
-      console.error("form not found");
-    }
+    s.householdDisplay = document.getElementsByClassName("household")[0];
+    s.debugDisplay = document.getElementsByClassName("debug")[0];
+
     var formElem = document.forms[0];
-    formElem.onsubmit = function(e) {
-      // Prevent page reload on button click
-      // Not great solution, ideally button elems are outside of form to prevent this
-      e.preventDefault();
-    }
-    for (var i = 0; i < formElem.length; i++) {
-      var elem = formElem[i];
-      if (elem.getAttribute("name") === "age") {
-        s.formAge = elem
-      } else if (elem.getAttribute("name") === "rel") {
-        s.formRel = elem
-      } else if (elem.getAttribute("name") === "smoker") {
-        s.formSmoker = elem
-      } else if (elem.getAttribute("class") === "add") {
-        s.addBtn = elem
-      } else if (elem.getAttribute('type') === 'submit') {
-        s.submitBtn = elem
+    if (formElem) {
+      formElem.onsubmit = function(e) {
+        // Prevent page reload on button click
+        // Not great, ideally button elems are outside of form to prevent this
+        e.preventDefault();
+      }
+      for (var i = 0; i < formElem.length; i++) {
+        var elem = formElem[i];
+        if (elem.getAttribute("name") === "age") {
+          s.formAge = elem
+        } else if (elem.getAttribute("name") === "rel") {
+          s.formRel = elem
+        } else if (elem.getAttribute("name") === "smoker") {
+          s.formSmoker = elem
+        } else if (elem.getAttribute("class") === "add") {
+          s.addBtn = elem
+        } else if (elem.getAttribute("type") === "submit") {
+          s.submitBtn = elem
+        }
       }
     }
 
-    var debugElems = document.getElementsByClassName("debug");
-    if (debugElems.length === 0) {
-      console.error("Debug elem not found")
-    }
-    s.debugDisplay = debugElems[0]
-
+    Object.values(s).map(function(v, i) {
+      if (!v) {
+        console.error("State elem " + i + " not initialized")
+      }
+    })
     this.state = s
   },
 
-  bindFormActions: function() {
+  bindBtnActions: function() {
     var s = this.state
     s.addBtn.addEventListener("click", function() {
       console.log("Add")
@@ -65,23 +67,47 @@ var HouseholdBuilder = {
     })
   },
 
+  appendHouseholdElement: function(item, index) {
+    var s = this.state
+
+    var wrapper = document.createElement("li");
+    var p = document.createElement("p");  
+    var btn = document.createElement("button");
+    p.appendChild(document.createTextNode(item.rel + ',' + item.age + ',' + item.smoker))
+    btn.appendChild(document.createTextNode("X"))
+    wrapper.appendChild(p)
+    wrapper.appendChild(btn)
+    btn.addEventListener("click", function() {
+      HouseholdBuilder.removeHouseholdItem(wrapper)
+    })
+
+    s.householdDisplay.appendChild(wrapper)
+  },
+
   addHouseholdItem: function() {
     var s = this.state
-    var form = {
+
+    var item = {
       age: s.formAge.value,
       rel: s.formRel.value,
       smoker: s.formSmoker.checked,
     }
-    s.household.push(form)
-    this.state = s
+    s.household.push(item);
+    HouseholdBuilder.appendHouseholdElement(item, s.household.length - 1);
+
+    this.state = s;
   },
 
-  removeHouseholdItem: function(index) {
+  removeHouseholdItem: function(wrapper) {
     var s = this.state
+
+    let index = Array.prototype.indexOf.call(s.householdDisplay.children, wrapper)
     if (index < 0 || index >= s.household.length) {
       console.error("Invalid remove index")
     }
     s.household = s.household.splice(index, 1)
+    s.householdDisplay.removeChild(wrapper)
+
     this.state = s
   }, 
 
@@ -90,7 +116,7 @@ var HouseholdBuilder = {
     var serialized = JSON.stringify(s.household)
     s.debugDisplay.innerText = serialized
     s.debugDisplay.style.display = "block"
-  }, 
+  },
 };
 
 (function() {
