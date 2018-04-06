@@ -1,12 +1,14 @@
 var HouseholdBuilder = {
   state: {
-    household: [],
-    formAge: null,
+    household: [],                // Household obj to send to backend
+    addEvent: function () {},     // Funcs for event listeners
+    submitEvent: function () {},
+    formAge: null,                // Form inputs
     formRel: null,
     formSmoker: null,
-    addBtn: null,
+    addBtn: null,                 // Form buttons
     submitBtn: null,
-    householdDisplay: null,
+    householdDisplay: null,       // Household display elems
     debugDisplay: null,
   },
 
@@ -57,17 +59,42 @@ var HouseholdBuilder = {
 
   bindBtnActions: function() {
     var s = this.state
-    s.addBtn.addEventListener("click", function() {
-      console.log("Add")
-      HouseholdBuilder.addHouseholdItem()
-    })
-    s.submitBtn.addEventListener("click", function() {
-      console.log("Submit")
+    s.addEvent = function() {
+      HouseholdBuilder.addMember()
+    }
+    s.submitEvent = function() {
       HouseholdBuilder.submitHousehold()
-    })
+    }
+    s.addBtn.addEventListener("click", s.addEvent)
+    s.submitBtn.addEventListener("click", s.submitEvent)
+    this.state = s
   },
 
-  appendHouseholdElement: function(item, index) {
+  unbindBtnActions: function() {
+    var s = this.state
+    s.addBtn.removeEventListener("click", s.addEvent)
+    s.submitBtn.removeEventListener("click", s.submitEvent)
+  },
+
+  // Ideally use native HTML5 form validation (ie required, type, pattern attributes)
+  // For this exercise I chose not to modify DOM because in real life you would directly edit the HTML
+  // Instead I created a validation function that can cover custom validation outside of HTML5
+  isMemberValid: function(item) {
+    var valid = true
+
+    if (!item.age || !Number(item.age) || Number(item.age) <= 0) {
+      console.log("Invalid age")
+      valid = false
+    }
+    if (!item.rel || item.rel === "") {
+      console.log("Invalid relationship")
+      valid = false
+    }
+
+    return valid
+  },
+
+  appendMemberElem: function(item, index) {
     var s = this.state
 
     var wrapper = document.createElement("li");
@@ -78,13 +105,13 @@ var HouseholdBuilder = {
     wrapper.appendChild(p)
     wrapper.appendChild(btn)
     btn.addEventListener("click", function() {
-      HouseholdBuilder.removeHouseholdItem(wrapper)
+      HouseholdBuilder.removeMember(wrapper)
     })
 
     s.householdDisplay.appendChild(wrapper)
   },
 
-  addHouseholdItem: function() {
+  addMember: function() {
     var s = this.state
 
     var item = {
@@ -92,27 +119,30 @@ var HouseholdBuilder = {
       rel: s.formRel.value,
       smoker: s.formSmoker.checked,
     }
-    s.household.push(item);
-    HouseholdBuilder.appendHouseholdElement(item, s.household.length - 1);
-
-    this.state = s;
+    if (HouseholdBuilder.isMemberValid(item)) {
+      s.household.push(item);
+      HouseholdBuilder.appendMemberElem(item, s.household.length - 1);
+      this.state = s;
+    } else {
+      console.log('Invalid form input')
+    }
   },
 
-  removeHouseholdItem: function(wrapper) {
+  removeMember: function(wrapper) {
     var s = this.state
 
     let index = Array.prototype.indexOf.call(s.householdDisplay.children, wrapper)
     if (index < 0 || index >= s.household.length) {
       console.error("Invalid remove index")
     }
-    s.household = s.household.splice(index, 1)
+    s.household.splice(index, 1)
     s.householdDisplay.removeChild(wrapper)
-
     this.state = s
   }, 
 
   submitHousehold: function() {
     var s = this.state
+
     var serialized = JSON.stringify(s.household)
     s.debugDisplay.innerText = serialized
     s.debugDisplay.style.display = "block"
@@ -121,4 +151,6 @@ var HouseholdBuilder = {
 
 (function() {
   HouseholdBuilder.init()
+
+  //HouseholdBuilder.unbindBtnActions()
 })();
