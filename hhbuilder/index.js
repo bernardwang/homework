@@ -1,14 +1,12 @@
 var HouseholdBuilder = {
   state: {
     household: [],                // Household obj to send to backend
-    addEvent: function () {},     // Funcs for event listeners
+    addEvent: function () {},     // Event listener functions, save for destroy
     submitEvent: function () {},
-    formAge: null,                // Form inputs
-    formRel: null,
-    formSmoker: null,
-    addBtn: null,                 // Form buttons
+    formElem: null,
+    addBtn: null,
     submitBtn: null,
-    householdDisplay: null,       // Household display elems
+    householdDisplay: null,
     debugDisplay: null,
   },
 
@@ -16,58 +14,47 @@ var HouseholdBuilder = {
     var s = this.state;
     this.initState();
     this.bindBtnActions();
+    this.modifyForm();
 
     console.log("done initialization");
+  },
+
+  destroy: function() {
+    var s = this.state;
+    this.unbindBtnActions();
+    s = {}
   },
 
   initState: function() {
     var s = this.state;
 
+    // Selecting DOM elements is hardcoded, ideally would use ids or check name attribute here
+    s.formElem = document.forms[0];
+    s.addBtn = s.formElem.elements[3];
+    s.submitBtn = s.formElem.elements[4];
+
     s.householdDisplay = document.getElementsByClassName("household")[0];
     s.debugDisplay = document.getElementsByClassName("debug")[0];
-
-    var formElem = document.forms[0];
-    if (formElem) {
-      formElem.onsubmit = function(e) {
-        // Prevent page reload on button click
-        // Not great, ideally button elems are outside of form to prevent this
-        e.preventDefault();
-      }
-      for (var i = 0; i < formElem.length; i++) {
-        var elem = formElem[i];
-        if (elem.getAttribute("name") === "age") {
-          s.formAge = elem
-        } else if (elem.getAttribute("name") === "rel") {
-          s.formRel = elem
-        } else if (elem.getAttribute("name") === "smoker") {
-          s.formSmoker = elem
-        } else if (elem.getAttribute("class") === "add") {
-          s.addBtn = elem
-        } else if (elem.getAttribute("type") === "submit") {
-          s.submitBtn = elem
-        }
-      }
-    }
 
     Object.values(s).map(function(v, i) {
       if (!v) {
         console.error("State elem " + i + " not initialized")
       }
     })
-    this.state = s
   },
 
   bindBtnActions: function() {
     var s = this.state
-    s.addEvent = function() {
+    s.addEvent = function(e) {
+      e.preventDefault();
       HouseholdBuilder.addMember()
     }
-    s.submitEvent = function() {
+    s.submitEvent = function(e) {
+      e.preventDefault();
       HouseholdBuilder.submitHousehold()
     }
     s.addBtn.addEventListener("click", s.addEvent)
-    s.submitBtn.addEventListener("click", s.submitEvent)
-    this.state = s
+    s.submitBtn.addEventListener("click", s.submitEvent) // Alternatively attach event to form elem on submit
   },
 
   unbindBtnActions: function() {
@@ -76,22 +63,16 @@ var HouseholdBuilder = {
     s.submitBtn.removeEventListener("click", s.submitEvent)
   },
 
-  // Ideally use native HTML5 form validation (ie required, type, pattern attributes)
-  // For this exercise I chose not to modify DOM because in real life you would directly edit the HTML
-  // Instead I created a validation function that can cover custom validation outside of HTML5
-  isMemberValid: function(item) {
-    var valid = true
+  // Modify form behavior using native HTML5 form validation
+  // Ordinarily I would just do this in the HTML and not JS
+  modifyForm: function() {
+    var s = this.state
+    var ageInput = s.formElem.elements.age;
+    var relInput = s.formElem.elements.rel;
 
-    if (!item.age || !Number(item.age) || Number(item.age) <= 0) {
-      console.log("Invalid age")
-      valid = false
-    }
-    if (!item.rel || item.rel === "") {
-      console.log("Invalid relationship")
-      valid = false
-    }
-
-    return valid
+    ageInput.setAttribute('required', true);
+    ageInput.setAttribute('pattern', '[1-9][0-9]*'); // Alternatively set text attribute to "number"
+    relInput.setAttribute('required', true);
   },
 
   appendMemberElem: function(item, index) {
@@ -100,57 +81,57 @@ var HouseholdBuilder = {
     var wrapper = document.createElement("li");
     var p = document.createElement("p");  
     var btn = document.createElement("button");
-    p.appendChild(document.createTextNode(item.rel + ',' + item.age + ',' + item.smoker))
-    btn.appendChild(document.createTextNode("X"))
-    wrapper.appendChild(p)
-    wrapper.appendChild(btn)
+    p.appendChild(document.createTextNode(item.rel + ',' + item.age + ',' + item.smoker));
+    btn.appendChild(document.createTextNode("X"));
     btn.addEventListener("click", function() {
       HouseholdBuilder.removeMember(wrapper)
-    })
+    });
+    wrapper.appendChild(p);
+    wrapper.appendChild(btn);
 
-    s.householdDisplay.appendChild(wrapper)
+    s.householdDisplay.appendChild(wrapper);
   },
 
   addMember: function() {
-    var s = this.state
+    var s = this.state;
 
     var item = {
-      age: s.formAge.value,
-      rel: s.formRel.value,
-      smoker: s.formSmoker.checked,
-    }
-    if (HouseholdBuilder.isMemberValid(item)) {
+      'age': s.formElem.elements.age.value,
+      'rel': s.formElem.elements.rel.value,
+      'smoker': s.formElem.elements.smoker.checked,
+    };
+
+    if (s.formElem.reportValidity()) {
       s.household.push(item);
-      HouseholdBuilder.appendMemberElem(item, s.household.length - 1);
-      this.state = s;
-    } else {
-      console.log('Invalid form input')
-    }
+      s.formElem.reset();
+      HouseholdBuilder.appendMemberElem(item, s.household.length - 1); // Add member to DOM list
+    };
   },
 
   removeMember: function(wrapper) {
-    var s = this.state
+    var s = this.state;
 
-    let index = Array.prototype.indexOf.call(s.householdDisplay.children, wrapper)
+    let index = Array.prototype.indexOf.call(s.householdDisplay.children, wrapper);
     if (index < 0 || index >= s.household.length) {
-      console.error("Invalid remove index")
+      console.error("Invalid remove index");
     }
-    s.household.splice(index, 1)
-    s.householdDisplay.removeChild(wrapper)
-    this.state = s
+
+    s.household.splice(index, 1);
+    s.householdDisplay.removeChild(wrapper); // Remove member from DOM list
   }, 
 
   submitHousehold: function() {
-    var s = this.state
+    var s = this.state;
 
-    var serialized = JSON.stringify(s.household)
-    s.debugDisplay.innerText = serialized
-    s.debugDisplay.style.display = "block"
+    var serialized = JSON.stringify(s.household);
+
+    s.debugDisplay.innerHTML = serialized;
+    s.debugDisplay.style.display = "block";
   },
 };
 
 (function() {
   HouseholdBuilder.init()
 
-  //HouseholdBuilder.unbindBtnActions()
+  //HouseholdBuilder.destroy()
 })();
