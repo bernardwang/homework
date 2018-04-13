@@ -3,7 +3,7 @@ var HouseholdBuilder = {
     household: [],                // Household obj to send to backend
     addEvent: function () {},     // Event listener functions, save for destroy
     submitEvent: function () {},
-    formElem: null,
+    formElem: null,               // DOM elements, save to avoid having to find multiple times
     addBtn: null,
     submitBtn: null,
     householdDisplay: null,
@@ -13,7 +13,6 @@ var HouseholdBuilder = {
   init: function() {
     var s = this.state;
     this.initState();
-    this.bindBtnActions();
     this.modifyForm();
 
     console.log("done initialization");
@@ -21,12 +20,22 @@ var HouseholdBuilder = {
 
   destroy: function() {
     var s = this.state;
-    this.unbindBtnActions();
-    s = {}
+    s.addBtn.removeEventListener("click", s.addEvent);
+    s.submitBtn.removeEventListener("click", s.submitEvent);
+    s = {};
   },
 
   initState: function() {
     var s = this.state;
+
+    s.addEvent = function(e) {
+      e.preventDefault(); // Prevent page reload, could avoid using preventDefault by moving buttons outside of the form
+      HouseholdBuilder.addMember();
+    }
+    s.submitEvent = function(e) {
+      e.preventDefault();
+      HouseholdBuilder.submitHousehold();
+    }
 
     // Selecting DOM elements is hardcoded, ideally would use ids or check name attribute here
     s.formElem = document.forms[0];
@@ -36,42 +45,25 @@ var HouseholdBuilder = {
     s.householdDisplay = document.getElementsByClassName("household")[0];
     s.debugDisplay = document.getElementsByClassName("debug")[0];
 
+    s.addBtn.addEventListener("click", s.addEvent);
+    s.submitBtn.addEventListener("click", s.submitEvent); // Alternatively attach event to form elem on submit
+
     Object.values(s).map(function(v, i) {
       if (!v) {
-        console.error("State elem " + i + " not initialized")
+        console.error("State elem " + i + " not initialized");
       }
     })
-  },
-
-  bindBtnActions: function() {
-    var s = this.state
-    s.addEvent = function(e) {
-      e.preventDefault();
-      HouseholdBuilder.addMember()
-    }
-    s.submitEvent = function(e) {
-      e.preventDefault();
-      HouseholdBuilder.submitHousehold()
-    }
-    s.addBtn.addEventListener("click", s.addEvent)
-    s.submitBtn.addEventListener("click", s.submitEvent) // Alternatively attach event to form elem on submit
-  },
-
-  unbindBtnActions: function() {
-    var s = this.state
-    s.addBtn.removeEventListener("click", s.addEvent)
-    s.submitBtn.removeEventListener("click", s.submitEvent)
   },
 
   // Modify form behavior using native HTML5 form validation
   // Ordinarily I would just do this in the HTML and not JS
   modifyForm: function() {
-    var s = this.state
+    var s = this.state;
     var ageInput = s.formElem.elements.age;
     var relInput = s.formElem.elements.rel;
 
     ageInput.setAttribute('required', true);
-    ageInput.setAttribute('pattern', '[1-9][0-9]*'); // Alternatively set text attribute to "number"
+    ageInput.setAttribute('pattern', '[1-9][0-9]*'); // Another options is to set the text attribute to "number"
     relInput.setAttribute('required', true);
   },
 
@@ -84,7 +76,7 @@ var HouseholdBuilder = {
     p.appendChild(document.createTextNode(item.rel + ',' + item.age + ',' + item.smoker));
     btn.appendChild(document.createTextNode("X"));
     btn.addEventListener("click", function() {
-      HouseholdBuilder.removeMember(wrapper)
+      HouseholdBuilder.removeMember(wrapper);
     });
     wrapper.appendChild(p);
     wrapper.appendChild(btn);
@@ -131,7 +123,7 @@ var HouseholdBuilder = {
 };
 
 (function() {
-  HouseholdBuilder.init()
+  HouseholdBuilder.init();
 
-  //HouseholdBuilder.destroy()
+  //HouseholdBuilder.destroy();
 })();
